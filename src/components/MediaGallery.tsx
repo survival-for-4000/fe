@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
 interface MediaItem {
@@ -128,7 +129,7 @@ export default function MediaGallery({
                   <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
                     {item.status === "completed" && item.url ? (
                       item.type === "image" ? (
-                        <img
+                        <Image
                           src={item.url}
                           alt={item.prompt}
                           className="w-full h-full object-cover"
@@ -332,7 +333,7 @@ export default function MediaGallery({
                   >
                     {item.status === "completed" && item.url ? (
                       item.type === "image" ? (
-                        <img
+                        <Image
                           src={item.url}
                           alt={item.prompt}
                           className="w-full h-full object-cover"

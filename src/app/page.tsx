@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import Sidebar from '../components/Sidebar';
-import styles from './page.module.css';
+import Sidebar from "../components/Sidebar";
+import styles from "./page.module.css";
 
 export default function HomePage() {
   return (
     <div className={styles.container}>
       <Sidebar />
-      
+
       <div className={styles.mainContent}>
         <div className={styles.contentArea}>
           <h1 className={styles.pageTitle}>환영합니다!</h1>
@@ -18,11 +18,15 @@ export default function HomePage() {
             <div className={styles.featureGrid}>
               <div className={styles.featureCard}>
                 <h3 className={styles.featureTitle}>캐릭터 생성</h3>
-                <p className={styles.featureDescription}>AI를 활용해 독창적인 캐릭터를 만들어보세요.</p>
+                <p className={styles.featureDescription}>
+                  AI를 활용해 독창적인 캐릭터를 만들어보세요.
+                </p>
               </div>
               <div className={styles.featureCard}>
                 <h3 className={styles.featureTitle}>영상 생성</h3>
-                <p className={styles.featureDescription}>AI 기술로 멋진 영상을 자동으로 생성하세요.</p>
+                <p className={styles.featureDescription}>
+                  AI 기술로 멋진 영상을 자동으로 생성하세요.
+                </p>
               </div>
             </div>
           </div>

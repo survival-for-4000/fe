@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import Sidebar from "../../components/Sidebar";
 import styles from "../page.module.css";
+import Image from "next/image";
 
 interface MediaAsset {
   id: string;
@@ -25,7 +26,7 @@ interface TimelineClip {
 }
 
 export default function VideoEditPage() {
-  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([
+  const [mediaAssets] = useState<MediaAsset[]>([
     {
       id: "1",
       type: "image",
@@ -63,7 +64,7 @@ export default function VideoEditPage() {
 
   const totalDuration = timelineClips.reduce(
     (max, clip) => Math.max(max, clip.startTime + clip.duration),
-    0
+    0,
   );
 
   // 드래그 시작
@@ -95,7 +96,7 @@ export default function VideoEditPage() {
       setTimelineClips((prev) => [...prev, newClip]);
       setDraggedAsset(null);
     },
-    [draggedAsset, totalDuration, zoom]
+    [draggedAsset, totalDuration, zoom],
   );
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -173,11 +174,11 @@ export default function VideoEditPage() {
                     className="bg-gray-700 rounded-lg overflow-hidden cursor-grab active:cursor-grabbing hover:bg-gray-600 transition-colors"
                   >
                     <div className="aspect-video bg-gray-600 relative">
-                      <img
+                      <Image
                         src={
                           asset.type === "image"
-                            ? asset.url
-                            : asset.thumbnailUrl
+                            ? asset.url || "/placeholder-image.png"
+                            : asset.thumbnailUrl || "/placeholder-image.png"
                         }
                         alt={asset.name}
                         className="w-full h-full object-cover"
@@ -343,7 +344,7 @@ export default function VideoEditPage() {
                     style={{
                       width: `${Math.max(
                         800,
-                        (totalDuration || 60) * 20 * zoom
+                        (totalDuration || 60) * 20 * zoom,
                       )}px`,
                     }}
                   >
@@ -360,7 +361,7 @@ export default function VideoEditPage() {
                             {formatTime(i * 5)}
                           </span>
                         </div>
-                      )
+                      ),
                     )}
 
                     {/* 현재 시간 표시기 */}
@@ -382,7 +383,7 @@ export default function VideoEditPage() {
                       style={{
                         width: `${Math.max(
                           800,
-                          (totalDuration || 60) * 20 * zoom
+                          (totalDuration || 60) * 20 * zoom,
                         )}px`,
                       }}
                     >
@@ -457,7 +458,7 @@ export default function VideoEditPage() {
                       style={{
                         width: `${Math.max(
                           800,
-                          (totalDuration || 60) * 20 * zoom
+                          (totalDuration || 60) * 20 * zoom,
                         )}px`,
                       }}
                     >
@@ -518,7 +519,7 @@ export default function VideoEditPage() {
                   <div className="text-sm text-white">
                     {(() => {
                       const clip = timelineClips.find(
-                        (c) => c.id === selectedClip
+                        (c) => c.id === selectedClip,
                       );
                       const asset = clip ? getAssetById(clip.assetId) : null;
                       return asset?.name || "Unknown";
@@ -545,8 +546,8 @@ export default function VideoEditPage() {
                         prev.map((clip) =>
                           clip.id === selectedClip
                             ? { ...clip, duration: newDuration }
-                            : clip
-                        )
+                            : clip,
+                        ),
                       );
                     }}
                   />

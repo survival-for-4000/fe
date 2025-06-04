@@ -66,7 +66,7 @@ export default function VideoPage() {
       ];
 
       setCharacters(
-        mockCharacters.filter((char) => char.status === "completed")
+        mockCharacters.filter((char) => char.status === "completed"),
       );
     } catch (error) {
       console.error("캐릭터 목록 로딩 실패:", error);
@@ -164,8 +164,8 @@ export default function VideoPage() {
                     status: "completed",
                     videoUrl: "/sample-video.mp4",
                   }
-                : video
-            )
+                : video,
+            ),
           );
         }, 3000);
 

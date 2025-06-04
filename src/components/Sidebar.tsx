@@ -4,13 +4,13 @@ import { useState, useEffect, JSX } from "react";
 import { handleSignIn, handleSignOut } from "../lib/auth";
 import { createClient } from "@supabase/supabase-js";
 import type { User } from "@supabase/supabase-js";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import styles from "../app/page.module.css";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
 interface MenuItem {

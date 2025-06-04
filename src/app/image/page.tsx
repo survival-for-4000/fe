@@ -18,16 +18,16 @@ export default function ImageGenerationPage() {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
-  const [selectedCharacter, setSelectedCharacter] = useState<string>("");
+  // const [selectedCharacter, setSelectedCharacter] = useState<string>("");
   const [quantity, setQuantity] = useState(4);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 목업 캐릭터 데이터
-  const availableCharacters = [
-    { id: "1", name: "아이유" },
-    { id: "2", name: "김태형" },
-    { id: "3", name: "박서준" },
-  ];
+  // const availableCharacters = [
+  //   { id: "1", name: "아이유" },
+  //   { id: "2", name: "김태형" },
+  //   { id: "3", name: "박서준" },
+  // ];
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -48,7 +48,7 @@ export default function ImageGenerationPage() {
           aspectRatio: "1:1",
           status: "generating",
           createdAt: new Date().toISOString(),
-        })
+        }),
       );
 
       setGeneratedImages((prev) => [...newImages, ...prev]);
@@ -63,8 +63,8 @@ export default function ImageGenerationPage() {
                   status: "completed",
                   imageUrl: `https://picsum.photos/400/400?random=${Math.random()}`,
                 }
-              : img
-          )
+              : img,
+          ),
         );
         setIsGenerating(false);
       }, 3000);
@@ -85,9 +85,9 @@ export default function ImageGenerationPage() {
     // 참조 이미지 처리 로직 추가
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("ko-KR");
-  };
+  // const formatDate = (dateString: string) => {
+  //   return new Date(dateString).toLocaleString("ko-KR");
+  // };
 
   // MediaGallery용 데이터 변환
   const mediaItems = generatedImages.map((image) => ({

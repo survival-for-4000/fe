@@ -19,7 +19,8 @@ export default function TrainPage() {
 
     // 이미지와 비디오 파일만 필터링
     const validFiles = files.filter(
-      (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
+      (file) =>
+        file.type.startsWith("image/") || file.type.startsWith("video/"),
     );
 
     if (validFiles.length !== files.length) {
@@ -65,7 +66,8 @@ export default function TrainPage() {
 
     const files = Array.from(e.dataTransfer.files);
     const validFiles = files.filter(
-      (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
+      (file) =>
+        file.type.startsWith("image/") || file.type.startsWith("video/"),
     );
 
     if (validFiles.length > 0) {
@@ -117,7 +119,11 @@ export default function TrainPage() {
       console.log("파일 개수:", selectedFiles.length);
       console.log(
         "파일 목록:",
-        selectedFiles.map((f) => ({ name: f.name, type: f.type, size: f.size }))
+        selectedFiles.map((f) => ({
+          name: f.name,
+          type: f.type,
+          size: f.size,
+        })),
       );
 
       // 임시 성공 시뮬레이션
