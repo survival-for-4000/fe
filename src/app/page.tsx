@@ -10,7 +10,7 @@ export default function HomePage() {
 
       <div className={styles.mainContent}>
         <div className={styles.contentArea}>
-          <h1 className={styles.pageTitle}>환영합니당!</h1>
+          <h1 className={styles.pageTitle}>환영합니당!!</h1>
           <div className={styles.contentCard}>
             <p className={styles.contentDescription}>
               AI 기반 캐릭터 및 영상 생성 플랫폼입니다.
