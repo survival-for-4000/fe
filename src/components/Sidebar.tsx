@@ -10,7 +10,7 @@ import styles from "../app/page.module.css";
 interface User {
   name: string;
   email: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface MenuItem {
