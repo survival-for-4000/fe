@@ -2,16 +2,16 @@
 
 import { useState, useEffect, JSX } from "react";
 import { handleSignIn, handleSignOut } from "../lib/auth";
-import { createClient } from "@supabase/supabase-js";
-import type { User } from "@supabase/supabase-js";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import styles from "../app/page.module.css";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
+// Spring Boot 백엔드에서 내려주는 사용자 정보 타입
+interface User {
+  name: string;
+  email: string;
+  [key: string]: any;
+}
 
 interface MenuItem {
   id: string;
@@ -26,17 +26,26 @@ export default function Sidebar(): JSX.Element {
   const [activeSection, setActiveSection] = useState<string>("home");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-    });
+    // Spring Boot 백엔드에서 로그인 상태 확인
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("https://api.hoit.ai.kr/api/profile", {
+          credentials: "include", // JWT 쿠키 접근 허용
+        });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-    });
+        if (res.ok) {
+          const userData = await res.json();
+          setUser(userData);
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        console.error("유저 정보 불러오기 실패:", err);
+        setUser(null);
+      }
+    };
 
-    return () => subscription.unsubscribe();
+    fetchUser();
   }, []);
 
   useEffect(() => {
@@ -92,9 +101,7 @@ export default function Sidebar(): JSX.Element {
       <div className={styles.loginArea}>
         {user ? (
           <div className={styles.userInfo}>
-            <div className={styles.userName}>
-              {user.user_metadata?.name || user.email}님
-            </div>
+            <div className={styles.userName}>{user.name || user.email}님</div>
             <button onClick={handleSignOut} className={styles.logoutButton}>
               로그아웃
             </button>
