@@ -14,12 +14,8 @@ interface Character {
 
 interface GeneratedVideo {
   id: string;
-  characterName: string;
-  prompt: string;
-  aspectRatio: string;
+  promptId: string;
   videoUrl: string;
-  thumbnailUrl?: string;
-  status: "generating" | "completed" | "failed";
   createdAt: string;
 }
 
@@ -120,10 +116,9 @@ export default function VideoPage() {
 
   const fetchGeneratedVideos = async () => {
     try {
-      // 실제 API 호출로 현재 유저의 생성된 영상 목록 가져오기
       const response = await fetch("http://localhost:8090/api/video/list", {
         method: "GET",
-        credentials: "include", // hoauth 쿠키 포함
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -133,13 +128,11 @@ export default function VideoPage() {
         throw new Error(`영상 목록 요청 실패: ${response.status}`);
       }
 
-      const videosData = await response.json();
+      const videosData: GeneratedVideo[] = await response.json();
       console.log("생성된 영상 목록:", videosData);
-
       setGeneratedVideos(videosData);
     } catch (error) {
       console.error("영상 목록 로딩 실패:", error);
-      // 에러 시 빈 배열로 설정
       setGeneratedVideos([]);
     }
   };
@@ -207,13 +200,8 @@ export default function VideoPage() {
 
           const newVideo: GeneratedVideo = {
             id: promptId,
-            characterName:
-              characters.find((c) => c.id === selectedCharacter)?.name || "",
-            prompt,
-            aspectRatio: "16:9",
-            videoUrl: result.videoUrl || "",
-            thumbnailUrl: result.thumbnailUrl || "",
-            status: "completed",
+            promptId: promptId, // promptId 추가
+            videoUrl: result || "",  // 🔄 여기 변경됨
             createdAt: new Date().toISOString(),
           };
 
@@ -221,6 +209,7 @@ export default function VideoPage() {
           alert("영상 생성이 완료되었습니다!");
           return;
         }
+
 
         if (status === "failed") {
           throw new Error("영상 생성 실패");
@@ -243,17 +232,17 @@ export default function VideoPage() {
     }
   };
 
-  // MediaGallery용 데이터 변환
+  // MediaGallery용 데이터 변환 수정
   const mediaItems = generatedVideos.map((video) => ({
     id: video.id,
     type: "video" as const,
-    prompt: video.prompt,
+    prompt: video.promptId, // promptId를 prompt로 사용
     url: video.videoUrl,
-    thumbnailUrl: video.thumbnailUrl,
-    aspectRatio: video.aspectRatio,
-    status: video.status,
+    thumbnailUrl: video.videoUrl, // 썸네일도 동일한 URL 사용
+    aspectRatio: "16:9", // 기본값 설정
+    status: "completed" as const, // 기본값 설정
     createdAt: video.createdAt,
-    characterName: video.characterName,
+    characterName: characters.find((c) => c.id === selectedCharacter)?.name || "" // 캐릭터 이름 매핑
   }));
 
   return (
