@@ -5,10 +5,10 @@ import Sidebar from "../../components/Sidebar";
 import MediaGallery from "../../components/MediaGallery";
 import styles from "../page.module.css";
 
+// Character 인터페이스 수정
 interface Character {
-  id: string;
+  id: number; // string에서 number로 변경 (Long 타입 매칭)
   name: string;
-  status: "completed" | "processing" | "failed";
   createdAt: string;
 }
 
@@ -30,13 +30,18 @@ interface User {
 }
 
 export default function VideoPage() {
-  const [selectedCharacter, setSelectedCharacter] = useState<string>("");
+  const [selectedCharacter, setSelectedCharacter] = useState<number | null>(
+    null
+  ); // string에서 number로 변경
   const [prompt, setPrompt] = useState("");
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(
+    null
+  ); // Add state for generatedVideoUrl
 
   // 컴포넌트 마운트 시 데이터 불러오기
   useEffect(() => {
@@ -77,25 +82,42 @@ export default function VideoPage() {
 
   const fetchCharacters = async () => {
     try {
-      // 실제 API 호출 (현재는 목업 데이터)
-      // const response = await fetch('/api/character/list')
-      // const data = await response.json()
+      // Fetch both personal and shared models
+      const [myModelsResponse, sharedModelsResponse] = await Promise.all([
+        fetch("http://localhost:8090/api/my-models", {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+        fetch("http://localhost:8090/api/shared-models", {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+      ]);
 
-      // Ghibli 캐릭터 목업 데이터
-      const mockCharacters: Character[] = [
-        {
-          id: "ghibli",
-          name: "Ghibli Style",
-          status: "completed",
-          createdAt: "2024-01-01",
-        },
-      ];
+      if (!myModelsResponse.ok || !sharedModelsResponse.ok) {
+        throw new Error("Failed to fetch models");
+      }
 
-      setCharacters(
-        mockCharacters.filter((char) => char.status === "completed")
-      );
+      const myModels = await myModelsResponse.json();
+      const sharedModels = await sharedModelsResponse.json();
+
+      // Combine and transform the models into Character format
+      const allModels = [...myModels, ...sharedModels].map((model) => ({
+        id: model.id,
+        name: model.name,
+        status: model.status || "completed",
+        createdAt: model.createdAt || new Date().toISOString(),
+      }));
+
+      // Filter completed models and update state
+      setCharacters(allModels.filter((model) => model.status === "completed"));
     } catch (error) {
       console.error("캐릭터 목록 로딩 실패:", error);
+      setCharacters([]); // Set empty array on error
     }
   };
 
@@ -125,6 +147,7 @@ export default function VideoPage() {
     }
   };
 
+  // handleSubmit 함수 수정
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -146,45 +169,72 @@ export default function VideoPage() {
     setIsGenerating(true);
 
     try {
-      console.log("영상 생성 요청:", {
-        character: selectedCharacter,
-        prompt: prompt.trim(),
-      });
-
-      // FormData 사용 (가장 간단함)
-      const formData = new FormData();
-      formData.append("modelName", selectedCharacter);
-      formData.append("prompt", prompt.trim());
-
-      const response = await fetch(`http://localhost:8090/api/video-result`, {
+      // 1. 영상 생성 시작
+      const startRes = await fetch("http://localhost:8090/api/video/start", {
         method: "POST",
         credentials: "include",
-        body: formData, // ✅ FormData 사용
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          prompt: prompt.trim(),
+          id: selectedCharacter.toString(),
+        }),
       });
 
-      if (!response.ok) {
-        throw new Error("영상 생성 요청 실패");
+      if (!startRes.ok) {
+        throw new Error("영상 생성 시작 실패");
       }
 
-      const result = await response.json();
-      console.log("API 응답:", result);
+      const { promptId } = await startRes.json();
 
-      const newVideo: GeneratedVideo = {
-        id: Date.now().toString(),
-        characterName:
-          characters.find((c) => c.id === selectedCharacter)?.name || "",
-        prompt,
-        aspectRatio: "16:9",
-        videoUrl: result.videoUrl || "",
-        thumbnailUrl: result.thumbnailUrl || "",
-        status: "completed",
-        createdAt: new Date().toISOString(),
+      // 2. 주기적으로 상태 확인
+      const pollInterval = 5000; // 5초마다 확인
+
+      const poll = async () => {
+        const statusRes = await fetch(
+          `http://localhost:8090/api/video/status/${promptId}`,
+          { credentials: "include" }
+        );
+
+        if (!statusRes.ok) {
+          throw new Error("상태 확인 실패");
+        }
+
+        const { status } = await statusRes.json();
+
+        if (status === "done") {
+          // 3. 결과 받아오기
+          const result = await fetch(
+            `http://localhost:8090/api/video/result/${promptId}`,
+            { credentials: "include" }
+          ).then((res) => res.json());
+
+          const newVideo: GeneratedVideo = {
+            id: promptId,
+            characterName:
+              characters.find((c) => c.id === selectedCharacter)?.name || "",
+            prompt,
+            aspectRatio: "16:9",
+            videoUrl: result.videoUrl || "",
+            thumbnailUrl: result.thumbnailUrl || "",
+            status: "completed",
+            createdAt: new Date().toISOString(),
+          };
+
+          setGeneratedVideos((prev) => [newVideo, ...prev]);
+          setGeneratedVideoUrl(result.videoUrl);
+          alert("영상 생성이 완료되었습니다!");
+          return;
+        }
+
+        if (status === "failed") {
+          throw new Error("영상 생성 실패");
+        }
+
+        // 아직 완료되지 않았다면 다시 확인
+        setTimeout(poll, pollInterval);
       };
 
-      setGeneratedVideos((prev) => [newVideo, ...prev]);
-      setIsGenerating(false);
-
-      alert("영상 생성 요청이 완료되었습니다!");
+      await poll();
     } catch (error) {
       console.error("영상 생성 에러:", error);
       const errorMessage =
@@ -248,8 +298,8 @@ export default function VideoPage() {
                       </label>
                       <select
                         id="character"
-                        value={selectedCharacter}
-                        onChange={(e) => setSelectedCharacter(e.target.value)}
+                        value={selectedCharacter || ""}
+                        onChange={(e) => setSelectedCharacter(Number(e.target.value))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       >
