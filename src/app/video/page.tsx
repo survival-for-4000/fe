@@ -39,9 +39,6 @@ export default function VideoPage() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
   const [user, setUser] = useState<User | null>(null);
-  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(
-    null
-  ); // Add state for generatedVideoUrl
 
   // 컴포넌트 마운트 시 데이터 불러오기
   useEffect(() => {
@@ -221,7 +218,6 @@ export default function VideoPage() {
           };
 
           setGeneratedVideos((prev) => [newVideo, ...prev]);
-          setGeneratedVideoUrl(result.videoUrl);
           alert("영상 생성이 완료되었습니다!");
           return;
         }
