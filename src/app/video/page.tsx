@@ -23,19 +23,57 @@ interface GeneratedVideo {
   createdAt: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
 export default function VideoPage() {
   const [selectedCharacter, setSelectedCharacter] = useState<string>("");
   const [prompt, setPrompt] = useState("");
-  const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16">("16:9");
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
+  const [user, setUser] = useState<User | null>(null);
 
-  // 컴포넌트 마운트 시 캐릭터 목록 불러오기
+  // 컴포넌트 마운트 시 데이터 불러오기
   useEffect(() => {
+    fetchUser();
     fetchCharacters();
     fetchGeneratedVideos();
   }, []);
+
+  const fetchUser = async () => {
+    try {
+      // 실제 API 호출로 현재 로그인된 유저 정보 가져오기
+      const response = await fetch("http://localhost:8090/api/profile", {
+        method: "GET",
+        credentials: "include", // hoauth 쿠키 포함
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`유저 정보 요청 실패: ${response.status}`);
+      }
+
+      const userData = await response.json();
+      console.log("현재 유저 정보:", userData);
+
+      setUser({
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+      });
+    } catch (error) {
+      console.error("유저 정보 로딩 실패:", error);
+      // 로그인이 필요한 경우 로그인 페이지로 리다이렉트
+      // window.location.href = '/login';
+    }
+  };
 
   const fetchCharacters = async () => {
     try {
@@ -43,30 +81,18 @@ export default function VideoPage() {
       // const response = await fetch('/api/character/list')
       // const data = await response.json()
 
-      // 목업 데이터
+      // Ghibli 캐릭터 목업 데이터
       const mockCharacters: Character[] = [
         {
-          id: "1",
-          name: "아이유",
+          id: "ghibli",
+          name: "Ghibli Style",
           status: "completed",
           createdAt: "2024-01-01",
-        },
-        {
-          id: "2",
-          name: "김태형",
-          status: "completed",
-          createdAt: "2024-01-02",
-        },
-        {
-          id: "3",
-          name: "박서준",
-          status: "processing",
-          createdAt: "2024-01-03",
         },
       ];
 
       setCharacters(
-        mockCharacters.filter((char) => char.status === "completed"),
+        mockCharacters.filter((char) => char.status === "completed")
       );
     } catch (error) {
       console.error("캐릭터 목록 로딩 실패:", error);
@@ -75,27 +101,27 @@ export default function VideoPage() {
 
   const fetchGeneratedVideos = async () => {
     try {
-      // 실제 API 호출 (현재는 목업 데이터)
-      // const response = await fetch('/api/video/list')
-      // const data = await response.json()
-
-      // 목업 데이터
-      const mockVideos: GeneratedVideo[] = [
-        {
-          id: "1",
-          characterName: "아이유",
-          prompt: "해변에서 웃으며 걷고 있는 모습",
-          aspectRatio: "16:9",
-          videoUrl: "/sample-video.mp4", // 실제로는 생성된 영상 URL
-          thumbnailUrl: "/sample-thumbnail.jpg",
-          status: "completed",
-          createdAt: "2024-01-01T10:00:00Z",
+      // 실제 API 호출로 현재 유저의 생성된 영상 목록 가져오기
+      const response = await fetch("http://localhost:8090/api/video/list", {
+        method: "GET",
+        credentials: "include", // hoauth 쿠키 포함
+        headers: {
+          "Content-Type": "application/json",
         },
-      ];
+      });
 
-      setGeneratedVideos(mockVideos);
+      if (!response.ok) {
+        throw new Error(`영상 목록 요청 실패: ${response.status}`);
+      }
+
+      const videosData = await response.json();
+      console.log("생성된 영상 목록:", videosData);
+
+      setGeneratedVideos(videosData);
     } catch (error) {
       console.error("영상 목록 로딩 실패:", error);
+      // 에러 시 빈 배열로 설정
+      setGeneratedVideos([]);
     }
   };
 
@@ -112,68 +138,61 @@ export default function VideoPage() {
       return;
     }
 
+    if (!user) {
+      alert("유저 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
     setIsGenerating(true);
 
     try {
-      const requestData = {
-        characterId: selectedCharacter,
+      console.log("영상 생성 요청:", {
+        character: selectedCharacter,
         prompt: prompt.trim(),
-        aspectRatio,
+      });
+
+      // FormData 사용 (가장 간단함)
+      const formData = new FormData();
+      formData.append("modelName", selectedCharacter);
+      formData.append("prompt", prompt.trim());
+
+      const response = await fetch(`http://localhost:8090/api/video-result`, {
+        method: "POST",
+        credentials: "include",
+        body: formData, // ✅ FormData 사용
+      });
+
+      if (!response.ok) {
+        throw new Error("영상 생성 요청 실패");
+      }
+
+      const result = await response.json();
+      console.log("API 응답:", result);
+
+      const newVideo: GeneratedVideo = {
+        id: Date.now().toString(),
+        characterName:
+          characters.find((c) => c.id === selectedCharacter)?.name || "",
+        prompt,
+        aspectRatio: "16:9",
+        videoUrl: result.videoUrl || "",
+        thumbnailUrl: result.thumbnailUrl || "",
+        status: "completed",
+        createdAt: new Date().toISOString(),
       };
 
-      console.log("영상 생성 요청:", requestData);
+      setGeneratedVideos((prev) => [newVideo, ...prev]);
+      setIsGenerating(false);
 
-      // 실제 API 호출 (현재는 콘솔 로그로 대체)
-      // const response = await fetch('/api/video/generate', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify(requestData),
-      // })
-      //
-      // if (!response.ok) {
-      //   throw new Error('영상 생성 요청 실패')
-      // }
-      //
-      // const result = await response.json()
-
-      // 임시 성공 시뮬레이션
-      setTimeout(() => {
-        const newVideo: GeneratedVideo = {
-          id: Date.now().toString(),
-          characterName:
-            characters.find((c) => c.id === selectedCharacter)?.name || "",
-          prompt,
-          aspectRatio,
-          videoUrl: "", // 생성 중이므로 빈 값
-          status: "generating",
-          createdAt: new Date().toISOString(),
-        };
-
-        setGeneratedVideos((prev) => [newVideo, ...prev]);
-        setIsGenerating(false);
-
-        // 3초 후 완료 상태로 변경 (실제로는 서버에서 웹소켓 등으로 알림)
-        setTimeout(() => {
-          setGeneratedVideos((prev) =>
-            prev.map((video) =>
-              video.id === newVideo.id
-                ? {
-                    ...video,
-                    status: "completed",
-                    videoUrl: "/sample-video.mp4",
-                  }
-                : video,
-            ),
-          );
-        }, 3000);
-
-        alert("영상 생성 요청이 완료되었습니다!");
-      }, 1000);
+      alert("영상 생성 요청이 완료되었습니다!");
     } catch (error) {
       console.error("영상 생성 에러:", error);
-      alert("영상 생성 중 오류가 발생했습니다.");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "알 수 없는 오류가 발생했습니다";
+      alert(`영상 생성 중 오류가 발생했습니다: ${errorMessage}`);
+    } finally {
       setIsGenerating(false);
     }
   };
@@ -200,6 +219,16 @@ export default function VideoPage() {
           <div className="max-w-7xl mx-auto">
             <h1 className="text-3xl font-bold text-gray-900 mb-8">영상 생성</h1>
 
+            {/* 유저 정보 표시 */}
+            {user && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <span className="font-medium">사용자:</span> {user.name} (
+                  {user.email})
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* 왼쪽: 영상 생성 설정 */}
               <div className="space-y-6">
@@ -215,7 +244,7 @@ export default function VideoPage() {
                         htmlFor="character"
                         className="block text-sm font-medium text-gray-700 mb-2"
                       >
-                        캐릭터 선택
+                        스타일 선택
                       </label>
                       <select
                         id="character"
@@ -224,7 +253,7 @@ export default function VideoPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         required
                       >
-                        <option value="">캐릭터를 선택하세요</option>
+                        <option value="">스타일을 선택하세요</option>
                         {characters.map((character) => (
                           <option key={character.id} value={character.id}>
                             {character.name}
@@ -233,8 +262,7 @@ export default function VideoPage() {
                       </select>
                       {characters.length === 0 && (
                         <p className="mt-1 text-sm text-gray-500">
-                          학습 완료된 캐릭터가 없습니다. 먼저 캐릭터를
-                          학습시켜주세요.
+                          사용 가능한 스타일이 없습니다.
                         </p>
                       )}
                     </div>
@@ -253,55 +281,21 @@ export default function VideoPage() {
                         onChange={(e) => setPrompt(e.target.value)}
                         rows={4}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                        placeholder="생성하고 싶은 영상에 대한 설명을 입력하세요&#10;예: 해변에서 웃으며 걷고 있는 모습"
+                        placeholder="생성하고 싶은 영상에 대한 설명을 입력하세요&#10;예: A peaceful countryside scene with rolling hills and a gentle breeze"
                         required
                       />
                     </div>
 
-                    {/* 화면 비율 선택 */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        화면 비율
-                      </label>
-                      <div className="flex space-x-4">
-                        <label className="flex items-center">
-                          <input
-                            type="radio"
-                            name="aspectRatio"
-                            value="16:9"
-                            checked={aspectRatio === "16:9"}
-                            onChange={(e) =>
-                              setAspectRatio(e.target.value as "16:9" | "9:16")
-                            }
-                            className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">
-                            16:9 (가로형)
-                          </span>
-                        </label>
-                        <label className="flex items-center">
-                          <input
-                            type="radio"
-                            name="aspectRatio"
-                            value="9:16"
-                            checked={aspectRatio === "9:16"}
-                            onChange={(e) =>
-                              setAspectRatio(e.target.value as "16:9" | "9:16")
-                            }
-                            className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">
-                            9:16 (세로형)
-                          </span>
-                        </label>
-                      </div>
-                    </div>
+                    {/* 화면 비율 선택 제거됨 */}
 
                     {/* 생성 버튼 */}
                     <button
                       type="submit"
                       disabled={
-                        isGenerating || !selectedCharacter || !prompt.trim()
+                        isGenerating ||
+                        !selectedCharacter ||
+                        !prompt.trim() ||
+                        !user
                       }
                       className="w-full px-4 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                     >
@@ -343,14 +337,15 @@ export default function VideoPage() {
                   </h3>
                   <div className="space-y-2 text-sm text-gray-600">
                     <p>
-                      <span className="font-medium">캐릭터:</span>{" "}
+                      <span className="font-medium">사용자:</span>{" "}
+                      {user ? `${user.name} (${user.email})` : "로딩 중..."}
+                    </p>
+                    <p>
+                      <span className="font-medium">스타일:</span>{" "}
                       {selectedCharacter
                         ? characters.find((c) => c.id === selectedCharacter)
                             ?.name
                         : "선택되지 않음"}
-                    </p>
-                    <p>
-                      <span className="font-medium">비율:</span> {aspectRatio}
                     </p>
                     <p>
                       <span className="font-medium">프롬프트:</span>{" "}

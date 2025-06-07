@@ -16,7 +16,8 @@
 
 export const handleSignIn = async (): Promise<void> => {
   // Spring Boot Google OAuth 엔드포인트로 리디렉션
-  window.location.href = "https://api.hoit.ai.kr/oauth2/authorization/google";
+  window.location.href =
+    "http://localhost:8090/oauth2/authorization/google?redirect_uri=http://localhost:3000/";
 };
 
 // export const handleSignOut = async (): Promise<void> => {
@@ -25,6 +26,19 @@ export const handleSignIn = async (): Promise<void> => {
 // };
 
 export const handleSignOut = async (): Promise<void> => {
-  // 로그아웃 처리 시 Spring 서버 로그아웃 URL이 있다면 거기로 보내기
-  window.location.href = "https://api.hoit.ai.kr/api/auth/logout";
+  try {
+    const res = await fetch("http://localhost:8090/api/auth/logout", {
+      method: "POST",
+      credentials: "include", // 쿠키 포함
+    });
+
+    if (res.ok) {
+      // ✅ 로그아웃 후 프론트 초기화 or 메인으로 이동
+      window.location.href = "http://localhost:3000"; // 또는 "/"
+    } else {
+      console.error("로그아웃 실패:", res.status);
+    }
+  } catch (error) {
+    console.error("로그아웃 중 예외 발생:", error);
+  }
 };

@@ -8,7 +8,7 @@ import styles from "../app/page.module.css";
 
 // Spring Boot 백엔드에서 내려주는 사용자 정보 타입
 interface User {
-  name: string;
+  nickname: string;
   email: string;
   [key: string]: unknown;
 }
@@ -29,7 +29,7 @@ export default function Sidebar(): JSX.Element {
     // Spring Boot 백엔드에서 로그인 상태 확인
     const fetchUser = async () => {
       try {
-        const res = await fetch("https://api.hoit.ai.kr/api/profile", {
+        const res = await fetch("http://localhost:8090/api/profile", {
           credentials: "include", // JWT 쿠키 접근 허용
         });
 
@@ -101,7 +101,9 @@ export default function Sidebar(): JSX.Element {
       <div className={styles.loginArea}>
         {user ? (
           <div className={styles.userInfo}>
-            <div className={styles.userName}>{user.name || user.email}님</div>
+            <div className={styles.userName}>
+              {user.nickname || user.email}님
+            </div>
             <button onClick={handleSignOut} className={styles.logoutButton}>
               로그아웃
             </button>
