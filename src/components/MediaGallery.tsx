@@ -133,6 +133,8 @@ export default function MediaGallery({
                           src={item.url}
                           alt={item.prompt}
                           className="w-full h-full object-cover"
+                          width={300} // ✅ 추가
+                          height={300} // ✅ 추가
                         />
                       ) : (
                         <video
@@ -337,6 +339,8 @@ export default function MediaGallery({
                           src={item.url}
                           alt={item.prompt}
                           className="w-full h-full object-cover"
+                          width={600} // ✅ 추가
+                          height={400} // ✅ 추가
                         />
                       ) : (
                         <video
