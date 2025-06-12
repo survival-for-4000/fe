@@ -5,12 +5,12 @@ import Sidebar from "../../components/Sidebar";
 import MediaGallery from "../../components/MediaGallery";
 import styles from "../page.module.css";
 
-// Character 인터페이스 수정
+// 타입 정의
 interface Character {
   id: number;
   name: string;
   createdAt: string;
-  shared?: boolean; // shared 필드 추가
+  shared?: boolean;
 }
 
 interface GeneratedVideo {
@@ -18,6 +18,8 @@ interface GeneratedVideo {
   promptId: string;
   videoUrl: string;
   createdAt: string;
+  status?: string; // 상태 추가
+  prompt?: string; // 프롬프트 텍스트 추가
 }
 
 interface User {
@@ -26,17 +28,16 @@ interface User {
   name: string;
 }
 
-// 파일 상단에 백엔드 응답 타입 추가
 interface BackendVideoResponse {
   id: string;
   prompt: string;
   model: any;
   taskId: string;
   videoUrl: string;
+  status: string;
   createdAt: string;
 }
 
-// 파일 상단에 API 응답 타입 정의 추가
 interface ModelResponse {
   id: number;
   name: string;
@@ -73,16 +74,12 @@ function ModelSelectionPopup({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* 배경 오버레이 */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
       />
-
-      {/* 팝업 모달 */}
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl">
-          {/* 헤더 */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">스타일 선택</h2>
             <button
@@ -105,7 +102,6 @@ function ModelSelectionPopup({
             </button>
           </div>
 
-          {/* 탭 네비게이션 */}
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => setActiveTab("shared")}
@@ -129,7 +125,6 @@ function ModelSelectionPopup({
             </button>
           </div>
 
-          {/* 모델 목록 */}
           <div className="p-6 max-h-96 overflow-y-auto">
             {activeTab === "shared" ? (
               sharedModels.length > 0 ? (
@@ -178,24 +173,11 @@ function ModelSelectionPopup({
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <svg
-                    className="mx-auto h-12 w-12 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3"
-                    />
-                  </svg>
                   <h3 className="mt-2 text-sm font-medium text-gray-900">
                     No shared models
                   </h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    There are no shared models available at the moment.
+                    There are no shared models available.
                   </p>
                 </div>
               )
@@ -245,19 +227,6 @@ function ModelSelectionPopup({
               </div>
             ) : (
               <div className="text-center py-12">
-                <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3"
-                  />
-                </svg>
                 <h3 className="mt-2 text-sm font-medium text-gray-900">
                   No private models
                 </h3>
@@ -274,6 +243,7 @@ function ModelSelectionPopup({
 }
 
 export default function VideoPage() {
+  // 상태 관리
   const [selectedCharacter, setSelectedCharacter] = useState<number | null>(
     null
   );
@@ -286,351 +256,151 @@ export default function VideoPage() {
   const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideo[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isModelPopupOpen, setIsModelPopupOpen] = useState(false);
-
-  // 기존 state들 아래에 추가
-  const [pendingVideos, setPendingVideos] = useState<{
-    [key: string]: {
-      promptId: string;
-      prompt: string;
-      characterName: string;
-      createdAt: string;
-    };
-  }>({});
-
-  // ✅ 각 작업별로 폴링 상태 관리
   const [pollingTasks, setPollingTasks] = useState<Set<string>>(new Set());
 
-  // 컴포넌트 마운트 시 데이터 불러오기
-  // useEffect(() => {
-  //   fetchUser();
-  //   fetchCharacters();
-  //   fetchGeneratedVideos();
-
-  //   // ✅ 진행 중인 작업 복구 (localStorage 사용)
-  //   const savedPending = localStorage.getItem("pendingVideos");
-  //   if (savedPending) {
-  //     const pendingData = JSON.parse(savedPending);
-  //     setPendingVideos(pendingData);
-
-  //     // 각 pending 작업에 대해 폴링 재시작
-  //     Object.keys(pendingData).forEach((promptId) => {
-  //       startPolling(promptId, pendingData[promptId]);
-  //     });
-  //   }
-  // }, []);
-
-  // ✅ useCallback으로 startPolling 함수 메모이제이션
-  const startPolling = useCallback(
-    async (promptId: string, pendingData: any, isNewTask: boolean = false) => {
-      const pollInterval = 5000;
-      let isPolling = true;
-
-      // ✅ 폴링 시작을 Set에 추가
-      setPollingTasks((prev) => new Set(prev).add(promptId));
-
-      const poll = async () => {
-        if (!isPolling) return;
-
-        try {
-          console.log(`폴링 중: ${promptId}`); // ✅ 디버깅 로그
-
-          const statusRes = await fetch(
-            `http://localhost:8090/api/video/status/${promptId}`,
-            { credentials: "include" }
-          );
-
-          if (statusRes.status === 404) {
-            console.log("작업을 찾을 수 없음, pending에서 제거");
-            isPolling = false;
-
-            // ✅ pending과 폴링 Set에서 제거
-            setPendingVideos((prev) => {
-              const updated = { ...prev };
-              delete updated[promptId];
-              localStorage.setItem("pendingVideos", JSON.stringify(updated));
-              return updated;
-            });
-
-            setPollingTasks((prev) => {
-              const newSet = new Set(prev);
-              newSet.delete(promptId);
-              return newSet;
-            });
-
-            // ✅ 새로운 작업인 경우에만 isGenerating false
-            if (isNewTask) {
-              setIsGenerating(false);
-            }
-
-            alert("해당 작업을 찾을 수 없습니다.");
-            return;
-          }
-
-          if (!statusRes.ok) {
-            throw new Error(`상태 확인 실패: ${statusRes.status}`);
-          }
-
-          // if (statusRes.status === 404) {
-          //   console.log("작업을 찾을 수 없음, pending에서 제거");
-          //   isPolling = false;
-
-          const { status } = await statusRes.json();
-          console.log(`상태 확인: ${promptId} = ${status}`); // ✅ 디버깅 로그
-
-          // ✅ running 상태도 진행 중으로 처리
-          if (
-            status === "processing" ||
-            status === "pending" ||
-            status === "running"
-          ) {
-            console.log(`진행 중인 상태 (${status}), 계속 폴링...`);
-            // 계속 폴링
-            if (isPolling) {
-              setTimeout(poll, pollInterval);
-            }
-            return;
-          }
-
-          if (status === "done") {
-            isPolling = false;
-
-            const result = await fetch(
-              `http://localhost:8090/api/video/result/${promptId}`,
-              { credentials: "include" }
-            ).then((res) => res.json());
-
-            const newVideo: GeneratedVideo = {
-              id: promptId,
-              promptId: promptId,
-              videoUrl: result || "",
-              createdAt: new Date().toISOString(),
-            };
-
-            // pending에서 제거
-            setPendingVideos((prev) => {
-              const updated = { ...prev };
-              delete updated[promptId];
-
-              // ✅ localStorage도 업데이트
-              localStorage.setItem("pendingVideos", JSON.stringify(updated));
-
-              console.log("Pending 제거 후:", updated);
-              return updated;
-            });
-
-            // ✅ 폴링 Set에서 제거
-            setPollingTasks((prev) => {
-              const newSet = new Set(prev);
-              newSet.delete(promptId);
-              return newSet;
-            });
-
-            setGeneratedVideos((prev) => [newVideo, ...prev]);
-            // ✅ 새로운 작업인 경우에만 isGenerating false와 알림
-            if (isNewTask) {
-              setIsGenerating(false);
-              alert("영상 생성이 완료되었습니다!");
-            }
-
-            return;
-          }
-
-          if (status === "failed") {
-            isPolling = false;
-
-            setPendingVideos((prev) => {
-              const updated = { ...prev };
-              delete updated[promptId];
-
-              // ✅ localStorage도 업데이트
-              localStorage.setItem("pendingVideos", JSON.stringify(updated));
-
-              return updated;
-            });
-
-            setPollingTasks((prev) => {
-              const newSet = new Set(prev);
-              newSet.delete(promptId);
-              return newSet;
-            });
-
-            // ✅ 새로운 작업인 경우에만 isGenerating false와 알림
-            if (isNewTask) {
-              setIsGenerating(false);
-              alert("영상 생성에 실패했습니다.");
-            }
-
-            return;
-          }
-
-          // 계속 폴링
-          if (isPolling) {
-            setTimeout(poll, pollInterval);
-          }
-        } catch (error) {
-          isPolling = false;
-          console.error("폴링 에러:", error);
-
-          // ✅ 폴링 Set에서 제거
-          setPollingTasks((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(promptId);
-            return newSet;
-          });
-
-          // ✅ 네트워크 에러와 서버 에러 구분
-          if (error instanceof TypeError && error.message.includes("fetch")) {
-            console.log("네트워크 에러로 폴링 중단");
-            return;
-          }
-
-          // ✅ 새로운 작업인 경우에만 상태 변경과 알림
-          if (isNewTask) {
-            setIsGenerating(false);
-            alert(`폴링 중 오류: `);
-          }
-        }
-      };
-
-      await poll();
-    },
-    []
-  );
-
-  // ✅ 컴포넌트 마운트 시 데이터 불러오기
+  // 페이지 초기화
   useEffect(() => {
     const initializePage = async () => {
       await fetchUser();
       await fetchCharacters();
       await fetchGeneratedVideos();
-
-      // ✅ localStorage에서 pending 작업 복구
-      const savedPending = localStorage.getItem("pendingVideos");
-      if (savedPending) {
-        try {
-          const pendingData = JSON.parse(savedPending);
-          console.log("localStorage에서 복구된 데이터:", pendingData);
-
-          // ✅ 더 관대한 복구 로직
-          const validPendingData: typeof pendingData = {};
-
-          for (const [promptId, data] of Object.entries(pendingData)) {
-            console.log(`작업 상태 확인 시작: ${promptId}`);
-
-            try {
-              // 서버에서 작업 상태 확인
-              const statusRes = await fetch(
-                `http://localhost:8090/api/video/status/${promptId}`,
-                {
-                  credentials: "include",
-                  // 타임아웃 추가
-                  signal: AbortSignal.timeout(10000),
-                }
-              );
-
-              console.log(`상태 응답: ${promptId} - ${statusRes.status}`);
-
-              if (statusRes.ok) {
-                const { status } = await statusRes.json();
-                console.log(`실제 상태: ${promptId} = ${status}`);
-
-                // ✅ processing인 경우만 복구, 나머지는 localStorage에서 제거
-                if (
-                  status === "processing" ||
-                  status === "pending" ||
-                  status === "running"
-                ) {
-                  validPendingData[promptId] = data;
-                  console.log(`✅ 진행 중인 작업 복구: ${promptId}`);
-                } else if (status === "done") {
-                  console.log(
-                    `⏭️ 완료된 작업이므로 localStorage에서 제거: ${promptId}`
-                  );
-                } else if (status === "failed") {
-                  console.log(
-                    `❌ 실패한 작업이므로 localStorage에서 제거: ${promptId}`
-                  );
-                }
-              } else if (statusRes.status === 404) {
-                console.log(
-                  `🔍 존재하지 않는 작업이므로 localStorage에서 제거: ${promptId}`
-                );
-              } else {
-                console.log(
-                  `⚠️ 알 수 없는 응답 상태 (${statusRes.status}), localStorage에서 제거: ${promptId}`
-                );
-              }
-            } catch (error) {
-              console.error(`작업 상태 확인 실패 (${promptId}):`, error);
-
-              // ✅ 네트워크 에러인 경우, 일단 복구하고 폴링에서 처리하도록 함
-              if (error instanceof TypeError || error.name === "TimeoutError") {
-                console.log(
-                  `🌐 네트워크 에러, 임시로 복구하여 폴링에서 재시도: ${promptId}`
-                );
-                validPendingData[promptId] = data;
-              } else {
-                console.log(`💥 기타 에러로 인해 작업 제거: ${promptId}`);
-              }
-            }
-          }
-
-          console.log(
-            "최종 유효한 pending 작업들:",
-            Object.keys(validPendingData)
-          );
-
-          // ✅ 유효한 pending 작업만 상태에 설정
-          setPendingVideos(validPendingData);
-
-          // ✅ localStorage 업데이트 (무효한 작업들 제거)
-          localStorage.setItem(
-            "pendingVideos",
-            JSON.stringify(validPendingData)
-          );
-
-          // ✅ 유효한 작업들에 대해서만 폴링 시작
-          if (Object.keys(validPendingData).length > 0) {
-            console.log(
-              `🚀 총 ${Object.keys(validPendingData).length}개 작업의 폴링 시작`
-            );
-
-            Object.keys(validPendingData).forEach((promptId) => {
-              console.log(`🔄 폴링 재시작: ${promptId}`);
-              startPolling(promptId, validPendingData[promptId], false);
-            });
-          } else {
-            console.log("📭 복구할 pending 작업이 없습니다");
-          }
-        } catch (error) {
-          console.error("localStorage 데이터 파싱 에러:", error);
-          localStorage.removeItem("pendingVideos");
-        }
-      } else {
-        console.log("📪 저장된 pending 작업이 없습니다");
-      }
+      await recoverOngoingTasks();
     };
 
     initializePage();
-  }, [startPolling]);
+  }, []);
 
+  // 진행 중인 작업 복구
+  const recoverOngoingTasks = async () => {
+    try {
+      const response = await fetch("http://localhost:8090/api/video/list", {
+        credentials: "include",
+      });
+
+      if (!response.ok) return;
+
+      const videos: BackendVideoResponse[] = await response.json();
+      const ongoingTasks = videos.filter(
+        (video) => video.status === "TRAINING" && video.taskId
+      );
+
+      console.log("복구할 진행 중인 작업들:", ongoingTasks);
+
+      ongoingTasks.forEach((task) => {
+        startPolling(task.taskId, false);
+      });
+    } catch (error) {
+      console.error("진행 중인 작업 복구 실패:", error);
+    }
+  };
+
+  // 폴링 함수
+  const startPolling = useCallback(
+    (promptId: string, isNewTask: boolean = true) => {
+      console.log(
+        `🚀🚀🚀🚀 [${new Date().toLocaleTimeString()}] 폴링 시작: ${promptId}`
+      ); // ✅ 유지
+      // if (pollingTasks.has(promptId)) {
+      //   console.log(`⚠️ 이미 폴링 중인 작업: ${promptId}`); // ✅ 추가
+      //   return;
+      // }
+
+      setPollingTasks((prev) => new Set(prev).add(promptId));
+
+      const poll = async () => {
+        try {
+          const response = await fetch(
+            `http://localhost:8090/api/video/status/${promptId}`,
+            {
+              credentials: "include",
+            }
+          );
+
+          console.log(
+            `📡 [${new Date().toLocaleTimeString()}] 응답 받음: ${response.status} for ${promptId}`
+          ); // ✅ response 정의 후 로그
+
+          if (!response.ok) {
+            console.error(`상태 확인 실패: ${response.status}`);
+            setPollingTasks((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(promptId);
+              return newSet;
+            });
+            return;
+          }
+
+          const { status } = await response.json();
+          console.log(`폴링 상태: ${promptId} = ${status}`);
+
+          if (status === "done") {
+            setPollingTasks((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(promptId);
+              return newSet;
+            });
+
+            if (isNewTask) {
+              alert("영상 생성 완료!");
+            }
+
+            await fetchGeneratedVideos();
+            return;
+          }
+
+          if (status === "failed") {
+            setPollingTasks((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(promptId);
+              return newSet;
+            });
+
+            if (isNewTask) {
+              alert("영상 생성 실패");
+            }
+            return;
+          }
+
+          // 진행 중이면 5초 후 재시도
+          if (
+            status === "processing" ||
+            status === "pending" ||
+            status === "running"
+          ) {
+            setTimeout(poll, 5000);
+          }
+        } catch (error) {
+          console.error("폴링 에러:", error);
+          setPollingTasks((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(promptId);
+            return newSet;
+          });
+        }
+      };
+
+      // setTimeout(poll, 1000);
+      console.log(`⏰⏰⏰⏰ 1초 후 폴링 예약 완료: ${promptId}`);
+      setTimeout(() => {
+        console.log(`🎬🎬🎬🎬 실제 poll 함수 실행 시작: ${promptId}`);
+        poll();
+      }, 1000);
+    },
+    []
+  );
+
+  // 유저 정보 가져오기
   const fetchUser = async () => {
     try {
       const response = await fetch("http://localhost:8090/api/profile", {
         method: "GET",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
-      if (!response.ok) {
-        throw new Error(`유저 정보 요청 실패: ${response.status}`);
-      }
+      if (!response.ok) return;
 
       const userData = await response.json();
-      console.log("현재 유저 정보:", userData);
-
       setUser({
         id: userData.id,
         email: userData.email,
@@ -641,6 +411,7 @@ export default function VideoPage() {
     }
   };
 
+  // 캐릭터 목록 가져오기
   const fetchCharacters = async () => {
     try {
       const [myModelsResponse, sharedModelsResponse] = await Promise.all([
@@ -654,20 +425,16 @@ export default function VideoPage() {
         }),
       ]);
 
-      if (!myModelsResponse.ok || !sharedModelsResponse.ok) {
-        throw new Error("Failed to fetch models");
-      }
+      if (!myModelsResponse.ok || !sharedModelsResponse.ok) return;
 
       const myModels: ModelResponse[] = await myModelsResponse.json();
       const sharedModelsData: ModelResponse[] =
         await sharedModelsResponse.json();
 
-      // shared 모델의 ID 목록 생성
       const sharedModelIds = new Set(sharedModelsData.map((model) => model.id));
 
-      // Private 모델: 내 모델 중에서 shared가 아닌 것만
       const transformedPrivateModels = myModels
-        .filter((model) => !sharedModelIds.has(model.id)) // shared 모델 제외
+        .filter((model) => !sharedModelIds.has(model.id))
         .map((model: ModelResponse) => ({
           id: model.id,
           name: model.name,
@@ -675,7 +442,6 @@ export default function VideoPage() {
           shared: false,
         }));
 
-      // Shared 모델: shared 모델만
       const transformedSharedModels = sharedModelsData.map(
         (model: ModelResponse) => ({
           id: model.id,
@@ -689,96 +455,54 @@ export default function VideoPage() {
       setSharedModels(transformedSharedModels);
     } catch (error) {
       console.error("캐릭터 목록 로딩 실패:", error);
-      setPrivateModels([]);
-      setSharedModels([]);
     }
   };
 
+  // 생성된 영상 목록 가져오기
   const fetchGeneratedVideos = async () => {
     try {
       const response = await fetch("http://localhost:8090/api/video/list", {
         method: "GET",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
-      if (!response.ok) {
-        throw new Error(`영상 목록 요청 실패: ${response.status}`);
-      }
+      if (!response.ok) return;
 
-      // 이렇게 변경:
       const videosData: BackendVideoResponse[] = await response.json();
       const transformedVideos: GeneratedVideo[] = videosData.map((video) => ({
         id: video.id,
-        promptId: video.taskId, // prompt를 promptId로 매핑
-        videoUrl: video.videoUrl,
+        promptId: video.taskId,
+        videoUrl: video.videoUrl || "", // URL이 없어도 포함
         createdAt: video.createdAt,
+        status: video.status, // 상태 추가
+        prompt: video.prompt, // 프롬프트 텍스트 추가
       }));
+
       setGeneratedVideos(transformedVideos);
-
-      // ✅ 추가: 완료된 작업들을 pending에서 제거
-      const completedTaskIds = new Set(
-        videosData
-          .filter((video) => video.videoUrl && video.videoUrl.trim() !== "")
-          .map((video) => video.taskId)
-      );
-
-      if (completedTaskIds.size > 0) {
-        setPendingVideos((prev) => {
-          const updated = { ...prev };
-          let hasChanges = false;
-
-          completedTaskIds.forEach((taskId) => {
-            if (updated[taskId]) {
-              delete updated[taskId];
-              hasChanges = true;
-              console.log(`✅ 완료된 작업을 pending에서 제거: ${taskId}`);
-            }
-          });
-
-          if (hasChanges) {
-            localStorage.setItem("pendingVideos", JSON.stringify(updated));
-          }
-
-          return updated;
-        });
-      }
     } catch (error) {
       console.error("영상 목록 로딩 실패:", error);
-      setGeneratedVideos([]);
     }
   };
 
+  // 캐릭터 선택 처리
   const handleSelectCharacter = (id: number, name: string) => {
     setSelectedCharacter(id);
     setSelectedCharacterName(name);
   };
 
-  // handleSubmit 함수 수정
+  // 폼 제출 처리
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedCharacter) {
-      alert("캐릭터를 선택해주세요.");
-      return;
-    }
-
-    if (!prompt.trim()) {
-      alert("프롬프트를 입력해주세요.");
-      return;
-    }
-
-    if (!user) {
-      alert("유저 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+    if (!selectedCharacter || !prompt.trim() || !user) {
+      alert("모든 필드를 입력해주세요.");
       return;
     }
 
     setIsGenerating(true);
 
     try {
-      // 1. 영상 생성 시작
       const startRes = await fetch("http://localhost:8090/api/video/start", {
         method: "POST",
         credentials: "include",
@@ -794,106 +518,36 @@ export default function VideoPage() {
       }
 
       const { promptId } = await startRes.json();
+      console.log(
+        `🔥🔥🔥🔥 promptId 받음, 이제 startPolling 호출: ${promptId}`
+      );
+      // 즉시 DB에서 새로운 데이터를 가져와서 UI 업데이트
+      await fetchGeneratedVideos();
 
-      const pendingData = {
-        promptId,
-        prompt: prompt.trim(),
-        characterName: selectedCharacterName,
-        createdAt: new Date().toISOString(),
-      };
+      startPolling(promptId, true);
+      console.log(`🔥🔥🔥🔥 startPolling 호출 완료: ${promptId}`);
 
-      // ✅ promptId 받은 즉시 pending 비디오 추가
-      // setPendingVideos((prev) => ({
-      //   ...prev,
-      //   // [promptId]: {
-      //   //   promptId,
-      //   //   prompt: prompt.trim(),
-      //   //   characterName: selectedCharacterName,
-      //   //   createdAt: new Date().toISOString(),
-      //   // },
-      //   [promptId]: pendingData,
-      // }));
-      // pending 상태 업데이트
-      setPendingVideos((prev) => {
-        const updated = {
-          ...prev,
-          [promptId]: pendingData,
-        };
-
-        // ✅ localStorage에 저장
-        localStorage.setItem("pendingVideos", JSON.stringify(updated));
-        console.log("localStorage에 저장됨:", updated);
-        return updated;
-      });
-
-      // ✅ 폴링 시작
-      await startPolling(promptId, pendingData, true);
+      alert(`영상 생성이 시작되었습니다! (ID: ${promptId})`);
+      setPrompt("");
     } catch (error) {
       console.error("영상 생성 에러:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "알 수 없는 오류가 발생했습니다";
-      alert(`영상 생성 중 오류가 발생했습니다: ${errorMessage}`);
+      alert(`영상 생성 중 오류가 발생했습니다: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // ✅ MediaGallery용 데이터 변환 수정
-  const pendingItems = Object.values(pendingVideos).map((pending) => ({
-    id: pending.promptId,
-    type: "video" as const,
-    prompt: pending.prompt,
-    url: "", // 빈 URL
-    thumbnailUrl: "",
-    aspectRatio: "16:9",
-    status: "generating" as const, // 생성 중 상태
-    createdAt: pending.createdAt,
-    characterName: pending.characterName,
-  }));
-
-  // const completedItems = generatedVideos.map((video) => ({
-  //   id: video.id,
-  //   type: "video" as const,
-  //   prompt: video.promptId,
-  //   url: video.videoUrl,
-  //   thumbnailUrl: video.videoUrl,
-  //   aspectRatio: "16:9",
-  //   status: "completed" as const,
-  //   createdAt: video.createdAt,
-  //   characterName: selectedCharacterName,
-  // }));
-  // const completedItems = generatedVideos.map((video) => {
-  //   // ✅ 백엔드 데이터에서 실제 프롬프트 텍스트 찾기
-  //   const backendVideo = videosData?.find((v) => v.taskId === video.promptId);
-  //   const actualPrompt = backendVideo?.prompt || video.promptId;
-
-  //   return {
-  //     id: video.id,
-  //     type: "video" as const,
-  //     prompt: actualPrompt, // ✅ 실제 프롬프트 텍스트 표시
-  //     url: video.videoUrl,
-  //     thumbnailUrl: video.videoUrl,
-  //     aspectRatio: "16:9",
-  //     status: "completed" as const,
-  //     createdAt: video.createdAt,
-  //     characterName: selectedCharacterName,
-  //   };
-  // });
-  const completedItems = generatedVideos.map((video) => ({
+  // MediaGallery 데이터 준비
+  const mediaItems = generatedVideos.map((video) => ({
     id: video.id,
     type: "video" as const,
-    prompt: video.promptId, // 일단 taskId를 표시 (나중에 개선 가능)
+    prompt: video.prompt || video.promptId, // 실제 프롬프트 텍스트 사용
     url: video.videoUrl,
     thumbnailUrl: video.videoUrl,
     aspectRatio: "16:9",
-    status: "completed" as const,
+    status: video.status === "TRAINING" ? "processing" : "completed", // 상태에 따라 분기
     createdAt: video.createdAt,
-    characterName: selectedCharacterName,
   }));
-
-  const mediaItems = [...pendingItems, ...completedItems]; // pending을 앞에
 
   return (
     <div className={styles.container}>
@@ -904,7 +558,6 @@ export default function VideoPage() {
           <div className="max-w-7xl mx-auto">
             <h1 className="text-3xl font-bold text-gray-900 mb-8">영상 생성</h1>
 
-            {/* 유저 정보 표시 */}
             {user && (
               <div className="mb-6 p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-800">
@@ -923,12 +576,8 @@ export default function VideoPage() {
                   </h2>
 
                   <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* 캐릭터 선택 */}
                     <div>
-                      <label
-                        htmlFor="character"
-                        className="block text-sm font-medium text-gray-700 mb-2"
-                      >
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         스타일 선택
                       </label>
                       <div className="flex space-x-3">
@@ -965,34 +614,22 @@ export default function VideoPage() {
                           </button>
                         )}
                       </div>
-                      {sharedModels.length === 0 &&
-                        privateModels.length === 0 && (
-                          <p className="mt-1 text-sm text-gray-500">
-                            사용 가능한 스타일이 없습니다.
-                          </p>
-                        )}
                     </div>
 
-                    {/* 프롬프트 입력 */}
                     <div>
-                      <label
-                        htmlFor="prompt"
-                        className="block text-sm font-medium text-gray-700 mb-2"
-                      >
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         프롬프트
                       </label>
                       <textarea
-                        id="prompt"
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         rows={4}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                        placeholder="생성하고 싶은 영상에 대한 설명을 입력하세요&#10;예: A peaceful countryside scene with rolling hills and a gentle breeze"
+                        placeholder="생성하고 싶은 영상에 대한 설명을 입력하세요"
                         required
                       />
                     </div>
 
-                    {/* 생성 버튼 */}
                     <button
                       type="submit"
                       disabled={
@@ -1034,7 +671,6 @@ export default function VideoPage() {
                   </form>
                 </div>
 
-                {/* 미리보기 영역 */}
                 <div className="bg-white rounded-lg shadow-sm border p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     미리보기

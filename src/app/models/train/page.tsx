@@ -19,8 +19,7 @@ export default function TrainPage() {
 
     // 이미지와 비디오 파일만 필터링
     const validFiles = files.filter(
-      (file) =>
-        file.type.startsWith("image/") || file.type.startsWith("video/"),
+      (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
     );
 
     if (validFiles.length !== files.length) {
@@ -66,8 +65,7 @@ export default function TrainPage() {
 
     const files = Array.from(e.dataTransfer.files);
     const validFiles = files.filter(
-      (file) =>
-        file.type.startsWith("image/") || file.type.startsWith("video/"),
+      (file) => file.type.startsWith("image/") || file.type.startsWith("video/")
     );
 
     if (validFiles.length > 0) {
@@ -109,31 +107,32 @@ export default function TrainPage() {
       const formData = new FormData();
       formData.append("name", name);
 
+      // 모든 파일을 'files' 키로 추가 (백엔드에서 List<MultipartFile> files로 받음)
       selectedFiles.forEach((file) => {
         formData.append("files", file);
       });
 
-      // 백엔드 API 호출 (현재는 콘솔 로그로 대체)
-      console.log("학습 시작:");
-      console.log("이름:", name);
-      console.log("파일 개수:", selectedFiles.length);
-      console.log(
-        "파일 목록:",
-        selectedFiles.map((f) => ({
-          name: f.name,
-          type: f.type,
-          size: f.size,
-        })),
-      );
+      // 백엔드 API 호출
+      const response = await fetch("http://localhost:8090/api/train", {
+        method: "POST",
+        credentials: "include", // ← 이 부분 추가
+        body: formData,
+        // Content-Type을 설정하지 않음 - 브라우저가 자동으로 multipart/form-data로 설정
+      });
 
-      // 임시 성공 시뮬레이션
-      setTimeout(() => {
-        alert("학습이 시작되었습니다!");
-        router.push("/training");
-      }, 2000);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.text();
+      console.log("학습 시작 성공:", result);
+
+      alert("학습이 시작되었습니다!");
+      router.push("/training");
     } catch (error) {
       console.error("학습 시작 에러:", error);
       alert("학습 시작 중 오류가 발생했습니다.");
+    } finally {
       setIsTraining(false);
     }
   };
